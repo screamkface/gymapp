@@ -7,8 +7,13 @@ import '../models/workout.dart';
 
 class ActiveWorkoutScreen extends StatefulWidget {
   final Schedule schedule;
+  final int defaultRestSeconds;
 
-  const ActiveWorkoutScreen({super.key, required this.schedule});
+  const ActiveWorkoutScreen({
+    super.key,
+    required this.schedule,
+    required this.defaultRestSeconds,
+  });
 
   @override
   State<ActiveWorkoutScreen> createState() => _ActiveWorkoutScreenState();
@@ -21,7 +26,6 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
   Timer? _restTimer;
   int _restSeconds = 0;
   bool _isTimerActive = false;
-  final int defaultRestTime = 90; // 1:30 di default
 
   @override
   void initState() {
@@ -45,7 +49,7 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
   void _startTimer() {
     _restTimer?.cancel();
     setState(() {
-      _restSeconds = defaultRestTime;
+      _restSeconds = widget.defaultRestSeconds;
       _isTimerActive = true;
     });
 
@@ -109,16 +113,60 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
     });
   }
 
+  void _showUndoSnackBar({
+    required String message,
+    required VoidCallback onUndo,
+  }) {
+    if (!mounted) {
+      return;
+    }
+
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 5),
+        action: SnackBarAction(label: 'ANNULLA', onPressed: onUndo),
+      ),
+    );
+  }
+
   void _removeSet(WorkoutExercise exercise, int index) {
+    if (index < 0 || index >= exercise.sets.length) {
+      return;
+    }
+
+    final deletedSet = exercise.sets[index];
     setState(() {
       exercise.sets.removeAt(index);
     });
+
+    _showUndoSnackBar(
+      message: 'Set eliminato.',
+      onUndo: () {
+        if (!mounted || exercise.sets.contains(deletedSet)) {
+          return;
+        }
+
+        setState(() {
+          final restoreIndex = index > exercise.sets.length
+              ? exercise.sets.length
+              : index;
+          exercise.sets.insert(restoreIndex, deletedSet);
+        });
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final compactInputBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide(color: colorScheme.outlineVariant),
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -218,7 +266,7 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
                   ...List.generate(exercise.sets.length, (setIndex) {
                     final exSet = exercise.sets[setIndex];
                     return Dismissible(
-                      key: Key('${exercise.name}_$setIndex'),
+                      key: ValueKey(exSet.id),
                       direction: DismissDirection.endToStart,
                       onDismissed: (_) => _removeSet(exercise, setIndex),
                       background: Container(
@@ -259,8 +307,13 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
                                     contentPadding: const EdgeInsets.symmetric(
                                       vertical: 8,
                                     ),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
+                                    border: compactInputBorder,
+                                    enabledBorder: compactInputBorder,
+                                    focusedBorder: compactInputBorder.copyWith(
+                                      borderSide: BorderSide(
+                                        color: colorScheme.primary,
+                                        width: 1.5,
+                                      ),
                                     ),
                                   ),
                                   onChanged: (val) {
@@ -283,8 +336,13 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
                                     contentPadding: const EdgeInsets.symmetric(
                                       vertical: 8,
                                     ),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
+                                    border: compactInputBorder,
+                                    enabledBorder: compactInputBorder,
+                                    focusedBorder: compactInputBorder.copyWith(
+                                      borderSide: BorderSide(
+                                        color: colorScheme.primary,
+                                        width: 1.5,
+                                      ),
                                     ),
                                   ),
                                   onChanged: (val) {

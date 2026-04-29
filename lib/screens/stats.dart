@@ -189,7 +189,9 @@ class StatsScreen extends StatelessWidget {
                                 colorScheme.primary;
                       final foregroundColor = volume == 0
                           ? colorScheme.onSurfaceVariant
-                          : _readableOn(backgroundColor);
+                          : intensity > 0.55
+                          ? colorScheme.onPrimary
+                          : colorScheme.onPrimaryContainer;
 
                       return Container(
                         decoration: BoxDecoration(
@@ -329,13 +331,6 @@ class _MetricCard extends StatelessWidget {
       ),
     );
   }
-}
-
-Color _readableOn(Color backgroundColor) {
-  final brightness = ThemeData.estimateBrightnessForColor(backgroundColor);
-  return brightness == Brightness.dark
-      ? const Color(0xFFFFFFFF)
-      : const Color(0xFF000000);
 }
 
 class _PeriodVolume {

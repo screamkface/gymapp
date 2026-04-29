@@ -5,11 +5,13 @@ import 'active_workout.dart';
 
 class ScheduleDetailScreen extends StatefulWidget {
   final Schedule schedule;
+  final int defaultRestSeconds;
   final VoidCallback onUpdate;
 
   const ScheduleDetailScreen({
     super.key,
     required this.schedule,
+    required this.defaultRestSeconds,
     required this.onUpdate,
   });
 
@@ -18,6 +20,25 @@ class ScheduleDetailScreen extends StatefulWidget {
 }
 
 class _ScheduleDetailScreenState extends State<ScheduleDetailScreen> {
+  void _showUndoSnackBar({
+    required String message,
+    required VoidCallback onUndo,
+  }) {
+    if (!mounted) {
+      return;
+    }
+
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 5),
+        action: SnackBarAction(label: 'ANNULLA', onPressed: onUndo),
+      ),
+    );
+  }
+
   void _addExercise(
     String name,
     int sets,
@@ -58,10 +79,32 @@ class _ScheduleDetailScreenState extends State<ScheduleDetailScreen> {
   }
 
   void _removeExercise(int index) {
+    if (index < 0 || index >= widget.schedule.exercises.length) {
+      return;
+    }
+
+    final deletedExercise = widget.schedule.exercises[index];
     setState(() {
       widget.schedule.exercises.removeAt(index);
     });
     widget.onUpdate();
+
+    _showUndoSnackBar(
+      message: 'Esercizio eliminato.',
+      onUndo: () {
+        if (!mounted || widget.schedule.exercises.contains(deletedExercise)) {
+          return;
+        }
+
+        setState(() {
+          final restoreIndex = index > widget.schedule.exercises.length
+              ? widget.schedule.exercises.length
+              : index;
+          widget.schedule.exercises.insert(restoreIndex, deletedExercise);
+        });
+        widget.onUpdate();
+      },
+    );
   }
 
   void _showExerciseDialog({int? indexToEdit, Exercise? exerciseToEdit}) {
@@ -193,8 +236,10 @@ class _ScheduleDetailScreenState extends State<ScheduleDetailScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>
-                      ActiveWorkoutScreen(schedule: widget.schedule),
+                  builder: (context) => ActiveWorkoutScreen(
+                    schedule: widget.schedule,
+                    defaultRestSeconds: widget.defaultRestSeconds,
+                  ),
                 ),
               );
             },
@@ -215,9 +260,7 @@ class _ScheduleDetailScreenState extends State<ScheduleDetailScreen> {
               itemBuilder: (context, index) {
                 final exercise = widget.schedule.exercises[index];
                 return Dismissible(
-                  key: Key(
-                    '${exercise.name}_${index}_${DateTime.now().millisecondsSinceEpoch}',
-                  ),
+                  key: ValueKey(exercise.id),
                   direction: DismissDirection.endToStart,
                   onDismissed: (_) => _removeExercise(index),
                   background: Container(

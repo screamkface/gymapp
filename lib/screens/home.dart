@@ -6,10 +6,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../app_preferences.dart';
 import '../models/exercise.dart';
 import '../models/schedule.dart';
 import '../models/workout.dart';
 import 'schedule_detail.dart';
+import 'settings.dart';
 import 'stats.dart';
 
 enum _HomeAction { importCsv, exportCsv, exportBackup, restoreBackup }
@@ -17,7 +19,14 @@ enum _HomeAction { importCsv, exportCsv, exportBackup, restoreBackup }
 enum _ScheduleMenuAction { toggleArchive, delete }
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode>? onThemeModeChanged;
+
+  const HomePage({
+    super.key,
+    this.themeMode = AppPreferences.defaultThemeMode,
+    this.onThemeModeChanged,
+  });
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -31,11 +40,13 @@ class _HomePageState extends State<HomePage> {
   String _searchQuery = '';
   int? _selectedWeekFilter;
   bool _showArchived = false;
+  int _defaultRestSeconds = AppPreferences.defaultRestSeconds;
 
   @override
   void initState() {
     super.initState();
     _loadData();
+    _loadSettings();
   }
 
   Future<void> _loadData() async {
@@ -96,6 +107,52 @@ class _HomePageState extends State<HomePage> {
     await Future.wait([_saveSchedules(), _saveHistory()]);
   }
 
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _defaultRestSeconds =
+          prefs.getInt(AppPreferences.defaultRestSecondsKey) ??
+          AppPreferences.defaultRestSeconds;
+    });
+  }
+
+  Future<void> _setDefaultRestSeconds(int seconds) async {
+    final normalizedSeconds = seconds.clamp(
+      AppPreferences.minRestSeconds,
+      AppPreferences.maxRestSeconds,
+    );
+
+    setState(() {
+      _defaultRestSeconds = normalizedSeconds;
+    });
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(AppPreferences.defaultRestSecondsKey, normalizedSeconds);
+  }
+
+  void _showUndoSnackBar({
+    required String message,
+    required VoidCallback onUndo,
+  }) {
+    if (!mounted) {
+      return;
+    }
+
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 5),
+        action: SnackBarAction(label: 'ANNULLA', onPressed: onUndo),
+      ),
+    );
+  }
+
   void _sortSchedules() {
     schedules.sort((a, b) {
       if (a.isArchived != b.isArchived) {
@@ -112,10 +169,30 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _deleteHistory(int index) async {
+    if (index < 0 || index >= history.length) {
+      return;
+    }
+
+    final deletedSession = history[index];
     setState(() {
       history.removeAt(index);
     });
     await _saveHistory();
+
+    _showUndoSnackBar(
+      message: 'Allenamento eliminato.',
+      onUndo: () {
+        if (!mounted || history.contains(deletedSession)) {
+          return;
+        }
+
+        setState(() {
+          final restoreIndex = index > history.length ? history.length : index;
+          history.insert(restoreIndex, deletedSession);
+        });
+        _saveHistory();
+      },
+    );
   }
 
   Future<void> _showInfo(String message) async {
@@ -227,6 +304,18 @@ class _HomePageState extends State<HomePage> {
       'schedules': schedules.map((schedule) => schedule.toJson()).toList(),
       'history': history.map((session) => session.toJson()).toList(),
     };
+  }
+
+  List<Schedule> _cloneSchedules(List<Schedule> source) {
+    return source
+        .map((schedule) => Schedule.fromJson(schedule.toJson()))
+        .toList();
+  }
+
+  List<WorkoutSession> _cloneHistory(List<WorkoutSession> source) {
+    return source
+        .map((session) => WorkoutSession.fromJson(session.toJson()))
+        .toList();
   }
 
   Future<void> _importCsv() async {
@@ -417,6 +506,8 @@ class _HomePageState extends State<HomePage> {
 
       final rawText = await _readPickedTextFile(pickedFile);
       final decoded = jsonDecode(_normalizeText(rawText));
+      final previousSchedules = _cloneSchedules(schedules);
+      final previousHistory = _cloneHistory(history);
 
       List<Schedule> restoredSchedules = [];
       List<WorkoutSession> restoredHistory = [];
@@ -455,7 +546,25 @@ class _HomePageState extends State<HomePage> {
       });
 
       await _saveAllData();
-      await _showInfo('Backup ripristinato con successo.');
+      _showUndoSnackBar(
+        message: 'Backup ripristinato.',
+        onUndo: () {
+          if (!mounted) {
+            return;
+          }
+
+          setState(() {
+            schedules
+              ..clear()
+              ..addAll(_cloneSchedules(previousSchedules));
+            history
+              ..clear()
+              ..addAll(_cloneHistory(previousHistory));
+            _sortSchedules();
+          });
+          _saveAllData();
+        },
+      );
     } catch (e) {
       await _showInfo('Errore durante ripristino backup: $e');
     }
@@ -466,10 +575,29 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
+    final deletedSchedule = schedules[index];
     setState(() {
       schedules.removeAt(index);
     });
     _saveSchedules();
+
+    _showUndoSnackBar(
+      message: 'Scheda eliminata.',
+      onUndo: () {
+        if (!mounted || schedules.contains(deletedSchedule)) {
+          return;
+        }
+
+        setState(() {
+          final restoreIndex = index > schedules.length
+              ? schedules.length
+              : index;
+          schedules.insert(restoreIndex, deletedSchedule);
+          _sortSchedules();
+        });
+        _saveSchedules();
+      },
+    );
   }
 
   void _addSchedule(String title, int week) {
@@ -617,6 +745,22 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  void _openSettings() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SettingsScreen(
+          themeMode: widget.themeMode,
+          onThemeModeChanged: widget.onThemeModeChanged,
+          defaultRestSeconds: _defaultRestSeconds,
+          onDefaultRestSecondsChanged: _setDefaultRestSeconds,
+          onExportBackup: _exportBackupJson,
+          onRestoreBackup: _restoreBackupJson,
+        ),
+      ),
+    );
+  }
+
   Widget _buildSchedulesTab() {
     final colorScheme = Theme.of(context).colorScheme;
     final visibleSchedules = _filteredSchedules();
@@ -640,9 +784,6 @@ class _HomePageState extends State<HomePage> {
                       icon: const Icon(Icons.clear),
                       onPressed: () => setState(() => _searchQuery = ''),
                     ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
             ),
           ),
         ),
@@ -657,10 +798,8 @@ class _HomePageState extends State<HomePage> {
                 width: 190,
                 child: DropdownButtonFormField<int?>(
                   initialValue: selectedWeekValue,
-                  decoration: const InputDecoration(
-                    labelText: 'Settimana',
-                    border: OutlineInputBorder(),
-                  ),
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Settimana'),
                   items: [
                     const DropdownMenuItem<int?>(
                       value: null,
@@ -725,9 +864,7 @@ class _HomePageState extends State<HomePage> {
                     final actualIndex = schedules.indexOf(schedule);
 
                     return Dismissible(
-                      key: Key(
-                        '${schedule.title}_${schedule.week}_${schedule.createdAt.toIso8601String()}',
-                      ),
+                      key: ValueKey(schedule.id),
                       direction: DismissDirection.endToStart,
                       onDismissed: (_) {
                         if (actualIndex != -1) {
@@ -817,6 +954,7 @@ class _HomePageState extends State<HomePage> {
                               MaterialPageRoute(
                                 builder: (context) => ScheduleDetailScreen(
                                   schedule: schedule,
+                                  defaultRestSeconds: _defaultRestSeconds,
                                   onUpdate: () {
                                     setState(() {});
                                     _saveSchedules();
@@ -912,6 +1050,11 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Impostazioni',
+            icon: const Icon(Icons.settings),
+            onPressed: _openSettings,
+          ),
           if (_currentIndex == 0)
             PopupMenuButton<_HomeAction>(
               tooltip: 'Importa ed esporta',
