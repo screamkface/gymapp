@@ -20,6 +20,29 @@ class ScheduleDetailScreen extends StatefulWidget {
 }
 
 class _ScheduleDetailScreenState extends State<ScheduleDetailScreen> {
+  String _techniqueLabel(IntensityTechnique technique) {
+    switch (technique) {
+      case IntensityTechnique.none:
+        return 'Nessuna tecnica';
+      case IntensityTechnique.dropSet:
+        return 'Drop Set';
+      case IntensityTechnique.restPause:
+        return 'Rest-Pause';
+      case IntensityTechnique.superSet:
+        return 'Superset';
+      case IntensityTechnique.cluster:
+        return 'Cluster Set';
+      case IntensityTechnique.isometric:
+        return 'Isometria';
+      case IntensityTechnique.negative:
+        return 'Ripetizioni negative';
+      case IntensityTechnique.forcedReps:
+        return 'Ripetizioni forzate';
+      case IntensityTechnique.topsetBackoff:
+        return 'Top Set / Back off';
+    }
+  }
+
   void _showUndoSnackBar({
     required String message,
     required VoidCallback onUndo,
@@ -45,6 +68,8 @@ class _ScheduleDetailScreenState extends State<ScheduleDetailScreen> {
     int reps,
     double weight,
     String notes,
+    IntensityTechnique technique,
+    int? backoffReps,
   ) {
     setState(() {
       widget.schedule.exercises.add(
@@ -54,6 +79,8 @@ class _ScheduleDetailScreenState extends State<ScheduleDetailScreen> {
           reps: reps,
           weight: weight,
           notes: notes,
+          technique: technique,
+          backoffReps: backoffReps,
         ),
       );
     });
@@ -67,6 +94,8 @@ class _ScheduleDetailScreenState extends State<ScheduleDetailScreen> {
     int reps,
     double weight,
     String notes,
+    IntensityTechnique technique,
+    int? backoffReps,
   ) {
     setState(() {
       widget.schedule.exercises[index].name = name;
@@ -74,6 +103,8 @@ class _ScheduleDetailScreenState extends State<ScheduleDetailScreen> {
       widget.schedule.exercises[index].reps = reps;
       widget.schedule.exercises[index].weight = weight;
       widget.schedule.exercises[index].notes = notes;
+      widget.schedule.exercises[index].technique = technique;
+      widget.schedule.exercises[index].backoffReps = backoffReps;
     });
     widget.onUpdate();
   }
@@ -109,6 +140,9 @@ class _ScheduleDetailScreenState extends State<ScheduleDetailScreen> {
 
   void _showExerciseDialog({int? indexToEdit, Exercise? exerciseToEdit}) {
     final bool isEditing = exerciseToEdit != null && indexToEdit != null;
+    IntensityTechnique selectedTechnique = isEditing
+        ? exerciseToEdit.technique
+        : IntensityTechnique.none;
 
     final nameController = TextEditingController(
       text: isEditing ? exerciseToEdit.name : '',
@@ -119,6 +153,16 @@ class _ScheduleDetailScreenState extends State<ScheduleDetailScreen> {
     final repsController = TextEditingController(
       text: isEditing ? exerciseToEdit.reps.toString() : '',
     );
+    final topSetRepsController = TextEditingController(
+      text: isEditing ? exerciseToEdit.reps.toString() : '',
+    );
+    final backoffRepsController = TextEditingController(
+      text:
+          isEditing &&
+              exerciseToEdit.technique == IntensityTechnique.topsetBackoff
+          ? (exerciseToEdit.backoffReps ?? exerciseToEdit.reps).toString()
+          : '',
+    );
     final weightController = TextEditingController(
       text: isEditing ? exerciseToEdit.weight.toString() : '',
     );
@@ -128,87 +172,156 @@ class _ScheduleDetailScreenState extends State<ScheduleDetailScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(isEditing ? 'Modifica Esercizio' : 'Nuovo Esercizio'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Nome (es. Squat)',
-                ),
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: setsController,
-                      decoration: const InputDecoration(labelText: 'Serie'),
-                      keyboardType: TextInputType.number,
-                    ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(isEditing ? 'Modifica Esercizio' : 'Nuovo Esercizio'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nome (es. Squat)',
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: repsController,
-                      decoration: const InputDecoration(
-                        labelText: 'Ripetizioni',
-                      ),
-                      keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<IntensityTechnique>(
+                  initialValue: selectedTechnique,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Tecnica di intensità',
+                  ),
+                  items: IntensityTechnique.values
+                      .map(
+                        (technique) => DropdownMenuItem<IntensityTechnique>(
+                          value: technique,
+                          child: Text(_techniqueLabel(technique)),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) {
+                      return;
+                    }
+
+                    setDialogState(() {
+                      selectedTechnique = value;
+                    });
+                  },
+                ),
+                const SizedBox(height: 8),
+                if (selectedTechnique == IntensityTechnique.topsetBackoff) ...[
+                  TextField(
+                    controller: topSetRepsController,
+                    decoration: const InputDecoration(
+                      labelText: 'Top Set - Ripetizioni',
                     ),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: backoffRepsController,
+                    decoration: const InputDecoration(
+                      labelText: 'Back off - Ripetizioni',
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                ] else ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: setsController,
+                          decoration: const InputDecoration(labelText: 'Serie'),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: repsController,
+                          decoration: const InputDecoration(
+                            labelText: 'Ripetizioni',
+                          ),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-              ),
-              TextField(
-                controller: weightController,
-                decoration: const InputDecoration(labelText: 'Peso (kg)'),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
+                const SizedBox(height: 8),
+                TextField(
+                  controller: weightController,
+                  decoration: const InputDecoration(labelText: 'Peso (kg)'),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                 ),
-              ),
-              TextField(
-                controller: notesController,
-                decoration: const InputDecoration(labelText: 'Note'),
-              ),
-            ],
+                const SizedBox(height: 8),
+                TextField(
+                  controller: notesController,
+                  decoration: const InputDecoration(labelText: 'Note'),
+                ),
+              ],
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annulla'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (nameController.text.isNotEmpty &&
-                  setsController.text.isNotEmpty &&
-                  repsController.text.isNotEmpty) {
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Annulla'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final bool isBackoff =
+                    selectedTechnique == IntensityTechnique.topsetBackoff;
+
+                final int? parsedSets = isBackoff
+                    ? 2
+                    : int.tryParse(setsController.text);
+                final int? parsedReps = isBackoff
+                    ? int.tryParse(topSetRepsController.text)
+                    : int.tryParse(repsController.text);
+                final int? parsedBackoffReps = isBackoff
+                    ? int.tryParse(backoffRepsController.text)
+                    : null;
+
+                if (nameController.text.isEmpty ||
+                    parsedSets == null ||
+                    parsedReps == null ||
+                    weightController.text.isEmpty ||
+                    (isBackoff && parsedBackoffReps == null)) {
+                  return;
+                }
+
                 if (isEditing) {
                   _editExercise(
                     indexToEdit,
                     nameController.text,
-                    int.tryParse(setsController.text) ?? 3,
-                    int.tryParse(repsController.text) ?? 10,
+                    parsedSets,
+                    parsedReps,
                     double.tryParse(weightController.text) ?? 0.0,
                     notesController.text,
+                    selectedTechnique,
+                    parsedBackoffReps,
                   );
                 } else {
                   _addExercise(
                     nameController.text,
-                    int.tryParse(setsController.text) ?? 3,
-                    int.tryParse(repsController.text) ?? 10,
+                    parsedSets,
+                    parsedReps,
                     double.tryParse(weightController.text) ?? 0.0,
                     notesController.text,
+                    selectedTechnique,
+                    parsedBackoffReps,
                   );
                 }
                 Navigator.pop(context);
-              }
-            },
-            child: Text(isEditing ? 'Salva' : 'Aggiungi'),
-          ),
-        ],
+              },
+              child: Text(isEditing ? 'Salva' : 'Aggiungi'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -283,28 +396,9 @@ class _ScheduleDetailScreenState extends State<ScheduleDetailScreen> {
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       subtitle: Text(
-                        '${exercise.set} set x ${exercise.reps} reps | ${exercise.weight} kg'
+                        '${exercise.technique == IntensityTechnique.topsetBackoff && exercise.backoffReps != null ? '2 set | Top Set ${exercise.reps} reps / Back off ${exercise.backoffReps} reps | ${exercise.weight} kg' : '${exercise.set} set x ${exercise.reps} reps | ${exercise.weight} kg'}'
+                        '\nTecnica: ${_techniqueLabel(exercise.technique)}'
                         '${exercise.notes.trim().isNotEmpty ? '\nNote: ${exercise.notes}' : ''}',
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: Icon(Icons.edit, color: colorScheme.primary),
-                            onPressed: () {
-                              _showExerciseDialog(
-                                indexToEdit: index,
-                                exerciseToEdit: exercise,
-                              );
-                            },
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.delete, color: colorScheme.error),
-                            onPressed: () {
-                              _removeExercise(index);
-                            },
-                          ),
-                        ],
                       ),
                     ),
                   ),

@@ -265,6 +265,8 @@ class _HomePageState extends State<HomePage> {
       return exercise.name == candidate.name &&
           exercise.set == candidate.set &&
           exercise.reps == candidate.reps &&
+          exercise.backoffReps == candidate.backoffReps &&
+          exercise.technique == candidate.technique &&
           exercise.weight == candidate.weight &&
           exercise.notes.trim() == candidate.notes.trim();
     });
@@ -374,6 +376,7 @@ class _HomePageState extends State<HomePage> {
           reps: reps,
           weight: weight,
           notes: notes,
+          technique: IntensityTechnique.none,
         );
 
         final scheduleIndex = schedules.indexWhere(
@@ -624,6 +627,8 @@ class _HomePageState extends State<HomePage> {
             reps: exercise.reps,
             weight: exercise.weight,
             notes: exercise.notes,
+            technique: exercise.technique,
+            backoffReps: exercise.backoffReps,
           ),
         )
         .toList();

@@ -29,6 +29,7 @@ void main() {
           set: 3,
           notes: '',
           weight: 80,
+          technique: IntensityTechnique.none,
         ),
       ],
     );

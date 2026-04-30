@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/exercise.dart';
 import '../models/schedule.dart';
 import '../models/workout.dart';
 
@@ -35,12 +36,25 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
       startTime: DateTime.now(),
       endTime: DateTime.now(), // verrà aggiornato alla fine
       exercises: widget.schedule.exercises.map((e) {
+        final isBackoff =
+            e.technique == IntensityTechnique.topsetBackoff &&
+            e.backoffReps != null;
+
+        final sets = isBackoff
+            ? [
+                ExerciseSet(weight: e.weight, reps: e.reps),
+                ExerciseSet(weight: e.weight, reps: e.backoffReps!),
+              ]
+            : List.generate(
+                e.set,
+                (index) => ExerciseSet(weight: e.weight, reps: e.reps),
+              );
+
         return WorkoutExercise(
           name: e.name,
-          sets: List.generate(
-            e.set,
-            (index) => ExerciseSet(weight: e.weight, reps: e.reps),
-          ),
+          notes: e.notes,
+          technique: e.technique,
+          sets: sets,
         );
       }).toList(),
     );
@@ -230,6 +244,15 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
                       color: colorScheme.primary,
                     ),
                   ),
+                  if (exercise.notes.trim().isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      exercise.notes,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 10),
                   Row(
                     children: const [
@@ -265,6 +288,10 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
                   const Divider(),
                   ...List.generate(exercise.sets.length, (setIndex) {
                     final exSet = exercise.sets[setIndex];
+                    final setLabel =
+                        exercise.technique == IntensityTechnique.topsetBackoff
+                            ? (setIndex == 0 ? 'Top Set' : 'Back off')
+                            : '${setIndex + 1}';
                     return Dismissible(
                       key: ValueKey(exSet.id),
                       direction: DismissDirection.endToStart,
@@ -285,9 +312,10 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
                         child: Row(
                           children: [
                             SizedBox(
-                              width: 30,
+                              width: 72,
                               child: Text(
-                                '${setIndex + 1}',
+                                setLabel,
+                                textAlign: TextAlign.center,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                 ),

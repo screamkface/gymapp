@@ -1,6 +1,5 @@
-// workout.dart
-
 import 'model_id.dart';
+import 'exercise.dart';
 
 class ExerciseSet {
   final String id;
@@ -33,25 +32,46 @@ class ExerciseSet {
 class WorkoutExercise {
   final String id;
   String name;
+  String notes;
+  IntensityTechnique technique;
   List<ExerciseSet> sets;
 
-  WorkoutExercise({String? id, required this.name, required this.sets})
-    : id = id ?? newModelId('workout_exercise');
+  WorkoutExercise({
+    String? id,
+    required this.name,
+    required this.notes,
+    required this.technique,
+    required this.sets,
+  }) : id = id ?? newModelId('workout_exercise');
 
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
+    'notes': notes,
+    'technique': technique.name,
     'sets': sets.map((e) => e.toJson()).toList(),
   };
 
-  factory WorkoutExercise.fromJson(Map<String, dynamic> json) =>
-      WorkoutExercise(
-        id: json['id'] as String?,
-        name: json['name'] as String,
-        sets: (json['sets'] as List)
-            .map((e) => ExerciseSet.fromJson(e as Map<String, dynamic>))
-            .toList(),
-      );
+  factory WorkoutExercise.fromJson(Map<String, dynamic> json) {
+    IntensityTechnique parsedTechnique = IntensityTechnique.none;
+    if (json['technique'] != null) {
+      try {
+        parsedTechnique = IntensityTechnique.values.byName(json['technique']);
+      } catch (e) {
+        parsedTechnique = IntensityTechnique.none;
+      }
+    }
+
+    return WorkoutExercise(
+      id: json['id'] as String?,
+      name: json['name'] as String,
+      notes: json['notes'] as String? ?? '',
+      technique: parsedTechnique,
+      sets: (json['sets'] as List)
+          .map((e) => ExerciseSet.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
 }
 
 class WorkoutSession {
