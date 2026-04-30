@@ -73,6 +73,7 @@ void main() {
           name: 'Rematore',
           sets: [
             ExerciseSet(id: 'set_1', weight: 60, reps: 10, isCompleted: true),
+            
           ],
         ),
       ],
