@@ -70,6 +70,7 @@ class _ScheduleDetailScreenState extends State<ScheduleDetailScreen> {
     String notes,
     IntensityTechnique technique,
     int? backoffReps,
+    int? restSeconds,
   ) {
     setState(() {
       widget.schedule.exercises.add(
@@ -81,6 +82,7 @@ class _ScheduleDetailScreenState extends State<ScheduleDetailScreen> {
           notes: notes,
           technique: technique,
           backoffReps: backoffReps,
+          restSeconds: restSeconds,
         ),
       );
     });
@@ -96,6 +98,7 @@ class _ScheduleDetailScreenState extends State<ScheduleDetailScreen> {
     String notes,
     IntensityTechnique technique,
     int? backoffReps,
+    int? restSeconds,
   ) {
     setState(() {
       widget.schedule.exercises[index].name = name;
@@ -105,6 +108,7 @@ class _ScheduleDetailScreenState extends State<ScheduleDetailScreen> {
       widget.schedule.exercises[index].notes = notes;
       widget.schedule.exercises[index].technique = technique;
       widget.schedule.exercises[index].backoffReps = backoffReps;
+      widget.schedule.exercises[index].restSeconds = restSeconds;
     });
     widget.onUpdate();
   }
@@ -165,6 +169,12 @@ class _ScheduleDetailScreenState extends State<ScheduleDetailScreen> {
     );
     final weightController = TextEditingController(
       text: isEditing ? exerciseToEdit.weight.toString() : '',
+    );
+    final restSecondsController = TextEditingController(
+      text: isEditing
+          ? (exerciseToEdit.restSeconds ?? widget.defaultRestSeconds)
+              .toString()
+          : widget.defaultRestSeconds.toString(),
     );
     final notesController = TextEditingController(
       text: isEditing ? exerciseToEdit.notes : '',
@@ -260,6 +270,14 @@ class _ScheduleDetailScreenState extends State<ScheduleDetailScreen> {
                 ),
                 const SizedBox(height: 8),
                 TextField(
+                  controller: restSecondsController,
+                  decoration: const InputDecoration(
+                    labelText: 'Recupero per esercizio (sec)',
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 8),
+                TextField(
                   controller: notesController,
                   decoration: const InputDecoration(labelText: 'Note'),
                 ),
@@ -285,11 +303,14 @@ class _ScheduleDetailScreenState extends State<ScheduleDetailScreen> {
                 final int? parsedBackoffReps = isBackoff
                     ? int.tryParse(backoffRepsController.text)
                     : null;
+                final int? parsedRestSeconds =
+                    int.tryParse(restSecondsController.text);
 
                 if (nameController.text.isEmpty ||
                     parsedSets == null ||
                     parsedReps == null ||
                     weightController.text.isEmpty ||
+                    parsedRestSeconds == null ||
                     (isBackoff && parsedBackoffReps == null)) {
                   return;
                 }
@@ -304,6 +325,7 @@ class _ScheduleDetailScreenState extends State<ScheduleDetailScreen> {
                     notesController.text,
                     selectedTechnique,
                     parsedBackoffReps,
+                    parsedRestSeconds,
                   );
                 } else {
                   _addExercise(
@@ -314,6 +336,7 @@ class _ScheduleDetailScreenState extends State<ScheduleDetailScreen> {
                     notesController.text,
                     selectedTechnique,
                     parsedBackoffReps,
+                    parsedRestSeconds,
                   );
                 }
                 Navigator.pop(context);
@@ -396,7 +419,10 @@ class _ScheduleDetailScreenState extends State<ScheduleDetailScreen> {
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       subtitle: Text(
-                        '${exercise.technique == IntensityTechnique.topsetBackoff && exercise.backoffReps != null ? '2 set | Top Set ${exercise.reps} reps / Back off ${exercise.backoffReps} reps | ${exercise.weight} kg' : '${exercise.set} set x ${exercise.reps} reps | ${exercise.weight} kg'}'
+                        '${exercise.technique == IntensityTechnique.topsetBackoff && exercise.backoffReps != null
+                            ? '2 set | Top Set ${exercise.reps} reps / Back off ${exercise.backoffReps} reps | ${exercise.weight} kg'
+                            : '${exercise.set} set x ${exercise.reps} reps | ${exercise.weight} kg'}'
+                        '\nRecupero: ${exercise.restSeconds ?? widget.defaultRestSeconds} sec'
                         '\nTecnica: ${_techniqueLabel(exercise.technique)}'
                         '${exercise.notes.trim().isNotEmpty ? '\nNote: ${exercise.notes}' : ''}',
                       ),

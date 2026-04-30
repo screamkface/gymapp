@@ -34,6 +34,7 @@ class WorkoutExercise {
   String name;
   String notes;
   IntensityTechnique technique;
+  int? restSeconds;
   List<ExerciseSet> sets;
 
   WorkoutExercise({
@@ -41,6 +42,7 @@ class WorkoutExercise {
     required this.name,
     required this.notes,
     required this.technique,
+    this.restSeconds,
     required this.sets,
   }) : id = id ?? newModelId('workout_exercise');
 
@@ -49,6 +51,7 @@ class WorkoutExercise {
     'name': name,
     'notes': notes,
     'technique': technique.name,
+    'restSeconds': restSeconds,
     'sets': sets.map((e) => e.toJson()).toList(),
   };
 
@@ -67,6 +70,7 @@ class WorkoutExercise {
       name: json['name'] as String,
       notes: json['notes'] as String? ?? '',
       technique: parsedTechnique,
+        restSeconds: json['restSeconds'] as int?,
       sets: (json['sets'] as List)
           .map((e) => ExerciseSet.fromJson(e as Map<String, dynamic>))
           .toList(),

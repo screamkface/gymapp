@@ -266,6 +266,7 @@ class _HomePageState extends State<HomePage> {
           exercise.set == candidate.set &&
           exercise.reps == candidate.reps &&
           exercise.backoffReps == candidate.backoffReps &&
+          exercise.restSeconds == candidate.restSeconds &&
           exercise.technique == candidate.technique &&
           exercise.weight == candidate.weight &&
           exercise.notes.trim() == candidate.notes.trim();
@@ -629,6 +630,7 @@ class _HomePageState extends State<HomePage> {
             notes: exercise.notes,
             technique: exercise.technique,
             backoffReps: exercise.backoffReps,
+            restSeconds: exercise.restSeconds,
           ),
         )
         .toList();

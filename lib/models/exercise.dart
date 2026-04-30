@@ -22,6 +22,7 @@ class Exercise {
   double weight;
   IntensityTechnique technique; // Aggiornato per usare l'enum
   int? backoffReps;
+  int? restSeconds;
 
   Exercise({
     String? id,
@@ -32,6 +33,7 @@ class Exercise {
     required this.weight,
     required this.technique,
     this.backoffReps,
+    this.restSeconds,
   }) : id = id ?? newModelId('exercise');
 
   Map<String, dynamic> toJson() => {
@@ -43,6 +45,7 @@ class Exercise {
     'weight': weight,
     'technique': technique.name, // Salviamo l'enum come Stringa (es: "dropSet")
     'backoffReps': backoffReps,
+    'restSeconds': restSeconds,
   };
 
   factory Exercise.fromJson(Map<String, dynamic> json) {
@@ -68,6 +71,7 @@ class Exercise {
           : (json['weight'] ?? 0.0), // Aggiunto fallback per evitare null
       technique: parsedTechnique, // Ripristiniamo l'enum
       backoffReps: json['backoffReps'] as int?,
+      restSeconds: json['restSeconds'] as int?,
     );
   }
 }

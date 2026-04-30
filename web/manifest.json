@@ -1,11 +1,11 @@
 {
-    "name": "gymapp",
-    "short_name": "gymapp",
+    "name": "GymApp",
+    "short_name": "GymApp",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#101828",
+    "theme_color": "#101828",
+    "description": "Workout tracker per schede, allenamenti e statistiche.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
