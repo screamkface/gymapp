@@ -71,10 +71,12 @@ void main() {
         WorkoutExercise(
           id: 'workout_exercise_1',
           name: 'Rematore',
+
           sets: [
             ExerciseSet(id: 'set_1', weight: 60, reps: 10, isCompleted: true),
-            
           ],
+          notes: '',
+          technique: IntensityTechnique.none,
         ),
       ],
     );

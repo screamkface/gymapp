@@ -120,11 +120,15 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
         final sets = isBackoff
             ? [
                 ExerciseSet(weight: exercise.weight, reps: exercise.reps),
-                ExerciseSet(weight: exercise.weight, reps: exercise.backoffReps!),
+                ExerciseSet(
+                  weight: exercise.weight,
+                  reps: exercise.backoffReps!,
+                ),
               ]
             : List.generate(
                 exercise.set,
-                (_) => ExerciseSet(weight: exercise.weight, reps: exercise.reps),
+                (_) =>
+                    ExerciseSet(weight: exercise.weight, reps: exercise.reps),
               );
 
         return WorkoutExercise(
@@ -316,13 +320,18 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
                     children: [
                       Icon(Icons.timer, size: 18, color: colorScheme.primary),
                       const SizedBox(width: 8),
-                      Text(
-                        activeRestSeconds == null
-                            ? 'Recupero per esercizio: ${_formatDuration(restSeconds)}'
-                            : 'Recupero in corso: ${_formatDuration(restSeconds)}',
-                        style: theme.textTheme.bodyMedium,
+                      // Wrap the Text in an Expanded widget
+                      Expanded(
+                        child: Text(
+                          activeRestSeconds == null
+                              ? 'Recupero ${_formatDuration(restSeconds)}'
+                              : 'In corso: ${_formatDuration(restSeconds)}',
+                          style: theme.textTheme.bodyMedium,
+                          // Optional but recommended: handle text truncation gracefully
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                      const Spacer(),
+                      // const Spacer(), <-- Remove the Spacer! Expanded already does this job.
                       IconButton(
                         tooltip: 'Aggiungi 30 secondi',
                         onPressed: () => _addThirtySeconds(exercise),
@@ -339,9 +348,10 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
                   ),
                   const SizedBox(height: 10),
                   Row(
-                    children: const [
-                      SizedBox(
-                        width: 30,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const SizedBox(
+                        width: 72,
                         child: Text(
                           'SET',
                           style: TextStyle(fontWeight: FontWeight.bold),
@@ -363,9 +373,10 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
                           ),
                         ),
                       ),
-                      SizedBox(
+                      Container(
                         width: 40,
-                        child: Center(child: Icon(Icons.check)),
+                        alignment: Alignment.center,
+                        child: Icon(Icons.check),
                       ),
                     ],
                   ),
@@ -374,8 +385,8 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
                     final exSet = exercise.sets[setIndex];
                     final setLabel =
                         exercise.technique == IntensityTechnique.topsetBackoff
-                            ? (setIndex == 0 ? 'Top Set' : 'Back off')
-                            : '${setIndex + 1}';
+                        ? (setIndex == 0 ? 'Top Set' : 'Back off')
+                        : '${setIndex + 1}';
 
                     return Dismissible(
                       key: ValueKey(exSet.id),
@@ -409,7 +420,7 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
                             Expanded(
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 16.0,
+                                  horizontal: 8.0,
                                 ),
                                 child: TextFormField(
                                   initialValue: exSet.weight.toString(),
@@ -430,7 +441,8 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
                                     ),
                                   ),
                                   onChanged: (value) {
-                                    exSet.weight = double.tryParse(value) ?? 0.0;
+                                    exSet.weight =
+                                        double.tryParse(value) ?? 0.0;
                                   },
                                 ),
                               ),
@@ -438,7 +450,7 @@ class _ActiveWorkoutScreenState extends State<ActiveWorkoutScreen> {
                             Expanded(
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 16.0,
+                                  horizontal: 8.0,
                                 ),
                                 child: TextFormField(
                                   initialValue: exSet.reps.toString(),
