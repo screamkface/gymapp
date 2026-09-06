@@ -38,6 +38,24 @@ void main() {
     expect(prompt, contains('Use only the provided context'));
   });
 
+  test('mobile structured prompt explains capsule semantics', () {
+    final prompt = AiCoachPrompts.buildStructuredPrompt(
+      task: AiCoachTask.weeklyReport,
+      context: const {
+        'context_format': 'mobile_structured_capsule_v1',
+        'user_data_available': true,
+        'capsule': 'USER_DATA_AVAILABLE=true\nSESSION 2026-09-05 Push',
+      },
+      schema: AiCoachPromptSchemas.weeklyReport,
+      mobileCapsule: true,
+    );
+
+    expect(prompt, contains('mobile_structured_capsule_v1'));
+    expect(prompt, contains('FACT/AN'));
+    expect(prompt, contains('Do not claim you cannot access'));
+    expect(prompt, contains('Return ONLY one valid JSON object'));
+  });
+
   test('parses workout recap JSON safely', () {
     final recap = WorkoutRecap.fromJson(
       decodeJsonObject('''

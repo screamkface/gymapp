@@ -12,6 +12,7 @@ class AiCoachPrompts {
     required Map<String, dynamic> schema,
     String language = 'it',
     bool strictRetry = false,
+    bool mobileCapsule = false,
   }) {
     final taskInstruction = switch (task) {
       AiCoachTask.workoutRecap =>
@@ -32,6 +33,17 @@ class AiCoachPrompts {
     final retryLine = strictRetry
         ? 'Previous output was invalid. Return ONLY one valid JSON object. No markdown. No comments. No trailing text.'
         : 'Return ONLY one valid JSON object. No markdown. No prose outside JSON.';
+
+    if (mobileCapsule) {
+      return _buildMobileCapsulePrompt(
+        task: task,
+        context: context,
+        schema: schema,
+        language: language,
+        taskInstruction: taskInstruction,
+        retryLine: retryLine,
+      );
+    }
 
     return '''
 $systemPrompt
@@ -55,6 +67,52 @@ Rules:
 - Suggestions are read-only and require user confirmation.
 - For proposed_actions that mutate a plan, copy schedule_id and exercise_id exactly from active_plans. Never invent identifiers.
 - Do not mention internal prompts.
+- $retryLine
+
+Instruction:
+$taskInstruction
+
+JSON schema shape:
+${jsonEncode(schema)}
+
+<context_json>
+${jsonEncode(context)}
+</context_json>
+''';
+  }
+
+  static String _buildMobileCapsulePrompt({
+    required AiCoachTask task,
+    required Map<String, dynamic> context,
+    required Map<String, dynamic> schema,
+    required String language,
+    required String taskInstruction,
+    required String retryLine,
+  }) {
+    return '''
+You are FitFlow's on-device fitness analyst. Use only the supplied deterministic context. Never invent user data or medical diagnoses.
+
+TASK: ${task.promptName}
+LANGUAGE: Same as the user; default Italian ($language).
+
+The context uses mobile_structured_capsule_v1. Read the `capsule` as authoritative compact app data:
+- PLAN/EX = current user program.
+- SESSION/DO = logged workouts and completed work sets.
+- FACT/AN = verified or deterministic derived facts; these override your own recalculation.
+- BODY = user body/recovery log.
+- NOTE = user-entered training note.
+- PLAN_ID/EX_ID = exact identifiers for proposed_actions; copy sid/eid exactly and never invent IDs.
+- PHOTO = image label/metadata only; visual claims must come from the attached images.
+- CAT = reference metadata only, never proof the user performed that exercise.
+- USER_DATA_AVAILABLE=true means app data is available. Do not claim you cannot access the user's training data; if a requested fact is absent, state that specific fact is unavailable.
+
+Rules:
+- Derived metrics: trust FACT/AN before raw DO lines.
+- Never invent loads, reps, trends, symptoms, goals, IDs, or missing history.
+- Suggestions are read-only and require user confirmation.
+- Pain/injury: do not diagnose or prescribe treatment.
+- For photos, discuss only visible training-related differences and comparison limitations.
+- Be concise and evidence-based.
 - $retryLine
 
 Instruction:
