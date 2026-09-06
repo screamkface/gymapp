@@ -38,9 +38,11 @@ class AiCoachStructuredContext {
     required Map<String, dynamic> context,
     int capsuleBudget = defaultCapsuleBudget,
   }) {
+    final safeBudget = capsuleBudget < 320 ? 320 : capsuleBudget;
     final intent = _intentForTask(task);
     final reserve = _supplementReserve(task);
-    final baseBudget = (capsuleBudget - reserve).clamp(500, capsuleBudget);
+    final desiredBase = safeBudget - reserve;
+    final baseBudget = desiredBase.clamp(160, safeBudget).toInt();
     final base = const AiCoachContextCapsuleBuilder().build(
       context: context,
       intent: intent,
@@ -48,19 +50,19 @@ class AiCoachStructuredContext {
     );
 
     final supplement = _taskSupplement(task, context);
-    final capsule = _fitParts([base, supplement], capsuleBudget);
+    final capsule = _fitParts([base, supplement], safeBudget);
     final capsuleDiagnostics = AiCoachContextCapsuleBuilder.lastDiagnostics;
     final userDataAvailable =
-        capsuleDiagnostics?.userDataAvailable ?? _hasUserData(context);
+        (capsuleDiagnostics?.userDataAvailable ?? false) || _hasUserData(context);
     final referenceDataAvailable =
-        capsuleDiagnostics?.referenceDataAvailable ??
+        (capsuleDiagnostics?.referenceDataAvailable ?? false) ||
         (context['exercise_catalog'] is Map &&
             (context['exercise_catalog'] as Map).isNotEmpty);
 
     final diagnostics = AiCoachStructuredContextDiagnostics(
       task: task,
       capsuleChars: capsule.length,
-      budgetChars: capsuleBudget,
+      budgetChars: safeBudget,
       userDataAvailable: userDataAvailable,
       referenceDataAvailable: referenceDataAvailable,
     );
@@ -194,6 +196,7 @@ class AiCoachStructuredContext {
     return nonEmptyList('active_plans') ||
         nonEmptyList('workouts') ||
         nonEmptyList('body_logs') ||
+        nonEmptyList('notes') ||
         nonEmptyMap('verified_evidence') ||
         nonEmptyMap('deterministic_analytics') ||
         nonEmptyMap('user_profile') ||
