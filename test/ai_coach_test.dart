@@ -279,17 +279,58 @@ class _FakeSuggestionService extends LocalAiCoachService {
   const _FakeSuggestionService();
 
   @override
-  Future<String> generateChatResponse({
+  Future<SuggestedAdjustmentReport> suggestWorkoutAdjustments({
     required List<WorkoutSession> history,
     required List<Schedule> schedules,
-    required List<ChatMessage> messages,
     List<ScheduleVersion> scheduleVersions = const [],
     List<BodyLog> bodyLogs = const [],
     AiCoachUserProfile profile = const AiCoachUserProfile(),
     AiCoachMemory memory = const AiCoachMemory(),
-    List<AiCoachImageInput> newImages = const [],
-    Map<String, dynamic>? focusContext,
-  }) async => 'Risposta test';
+  }) async {
+    return const SuggestedAdjustmentReport(
+      suggestions: [
+        SuggestedAdjustment(
+          type: 'load_progression',
+          target: 'Squat',
+          suggestion: 'Increase by 2.5 kg next session',
+          reason: 'Last session was stable.',
+          evidence: ['Completed all work sets with RIR 2'],
+          confidence: 'medium',
+          requiresUserConfirmation: true,
+        ),
+      ],
+    );
+  }
+}
+
+class _FakeModelInstaller implements AiCoachModelInstaller {
+  const _FakeModelInstaller();
+
+  @override
+  String get modelName => 'Fake Gemma';
+
+  @override
+  String get modelFileName => 'fake.litertlm';
+
+  @override
+  String get modelUrl => 'https://example.com/fake.litertlm';
+
+  @override
+  String get modelSizeLabel => '0 MB';
+
+  @override
+  Future<void> initialize() async {}
+
+  @override
+  Future<bool> isInstalled() async => true;
+
+  @override
+  Future<void> install({void Function(int progress)? onProgress}) async {
+    onProgress?.call(100);
+  }
+
+  @override
+  Future<void> activateInstalledModel() async {}
 }
 
 class _FakePlanActionService extends LocalAiCoachService {
@@ -309,55 +350,25 @@ class _FakePlanActionService extends LocalAiCoachService {
         SuggestedAdjustment(
           type: 'load_progression',
           target: 'Panca',
-          suggestion: 'Aumenta il carico',
-          reason: 'Progressione stabile',
-          evidence: ['2 sedute positive'],
+          suggestion: 'Aumenta di 2.5 kg',
+          reason: 'RIR stabile e readiness adeguata',
+          evidence: ['deterministic progression'],
           confidence: 'high',
           requiresUserConfirmation: true,
           proposedActions: [
-            AiPlanAction(
+            ProposedPlanAction(
               action: 'increase_load',
               target: 'Panca',
-              scheduleId: 'push-plan',
-              exerciseId: 'bench-plan',
               field: 'weight',
               currentValue: '80',
               suggestedValue: '82.5',
-              rationale: 'Incremento graduale',
+              rationale: 'Piccolo incremento',
+              scheduleId: 'push-plan',
+              exerciseId: 'bench-plan',
             ),
           ],
         ),
       ],
     );
   }
-}
-
-class _FakeModelInstaller implements AiCoachModelInstaller {
-  const _FakeModelInstaller();
-
-  @override
-  String get modelName => 'Fake Gemma';
-
-  @override
-  String get modelFileName => 'fake.litertlm';
-
-  @override
-  String get modelUrl => 'https://example.com/model';
-
-  @override
-  String get modelSizeLabel => '0 MB';
-
-  @override
-  Future<void> initialize() async {}
-
-  @override
-  Future<bool> isInstalled() async => true;
-
-  @override
-  Future<void> install({void Function(int progress)? onProgress}) async {
-    onProgress?.call(100);
-  }
-
-  @override
-  Future<void> activateInstalledModel() async {}
 }
