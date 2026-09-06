@@ -12,6 +12,7 @@ import 'ai_coach_memory.dart';
 import 'ai_coach_memory_updater.dart';
 import 'ai_coach_models.dart';
 import 'ai_coach_prompts.dart';
+import 'ai_coach_structured_context.dart';
 import 'ai_coach_user_profile.dart';
 import 'chat_conversation.dart';
 import 'exercise_catalog_retriever.dart';
@@ -75,6 +76,17 @@ class LocalAiCoachService {
     AiCoachUserProfile profile = const AiCoachUserProfile(),
     AiCoachMemory memory = const AiCoachMemory(),
   }) async {
+    final live = await _resolveLiveData(
+      history: history,
+      schedules: schedules,
+      scheduleVersions: scheduleVersions,
+      bodyLogs: bodyLogs,
+    );
+    history = live.history;
+    schedules = live.schedules;
+    scheduleVersions = live.scheduleVersions;
+    bodyLogs = live.bodyLogs;
+
     if (history.isEmpty) {
       throw const AiCoachInsufficientDataException(
         'Complete at least one workout to generate a recap.',
@@ -103,6 +115,17 @@ class LocalAiCoachService {
     AiCoachUserProfile profile = const AiCoachUserProfile(),
     AiCoachMemory memory = const AiCoachMemory(),
   }) async {
+    final live = await _resolveLiveData(
+      history: history,
+      schedules: schedules,
+      scheduleVersions: scheduleVersions,
+      bodyLogs: bodyLogs,
+    );
+    history = live.history;
+    schedules = live.schedules;
+    scheduleVersions = live.scheduleVersions;
+    bodyLogs = live.bodyLogs;
+
     if (history.isEmpty) {
       throw const AiCoachInsufficientDataException(
         'Add at least 1-2 workouts to generate a weekly report.',
@@ -131,6 +154,17 @@ class LocalAiCoachService {
     AiCoachUserProfile profile = const AiCoachUserProfile(),
     AiCoachMemory memory = const AiCoachMemory(),
   }) async {
+    final live = await _resolveLiveData(
+      history: history,
+      schedules: schedules,
+      scheduleVersions: scheduleVersions,
+      bodyLogs: bodyLogs,
+    );
+    history = live.history;
+    schedules = live.schedules;
+    scheduleVersions = live.scheduleVersions;
+    bodyLogs = live.bodyLogs;
+
     if (history.length < 2) {
       throw const AiCoachInsufficientDataException(
         'At least 2-3 workouts are required to identify useful weak points.',
@@ -159,6 +193,17 @@ class LocalAiCoachService {
     AiCoachUserProfile profile = const AiCoachUserProfile(),
     AiCoachMemory memory = const AiCoachMemory(),
   }) async {
+    final live = await _resolveLiveData(
+      history: history,
+      schedules: schedules,
+      scheduleVersions: scheduleVersions,
+      bodyLogs: bodyLogs,
+    );
+    history = live.history;
+    schedules = live.schedules;
+    scheduleVersions = live.scheduleVersions;
+    bodyLogs = live.bodyLogs;
+
     final hasNotes = history
         .expand((session) => session.exercises)
         .any(
@@ -255,6 +300,18 @@ class LocalAiCoachService {
         'Upload at least two progress photos to compare changes.',
       );
     }
+
+    final live = await _resolveLiveData(
+      history: history,
+      schedules: schedules,
+      scheduleVersions: scheduleVersions,
+      bodyLogs: bodyLogs,
+    );
+    history = live.history;
+    schedules = live.schedules;
+    scheduleVersions = live.scheduleVersions;
+    bodyLogs = live.bodyLogs;
+
     final context = contextBuilder.recent(
       history: history,
       schedules: schedules,
@@ -435,10 +492,15 @@ Response policy:
       keepProgramHistory: false,
       maxWorkouts: 6,
     );
+    final useMobileCapsule = engine is FlutterGemmaLocalLlmEngine;
+    final modelContext = useMobileCapsule
+        ? AiCoachStructuredContext.build(task: task, context: compactContext)
+        : compactContext;
     final prompt = AiCoachPrompts.buildStructuredPrompt(
       task: task,
-      context: compactContext,
+      context: modelContext,
       schema: schema,
+      mobileCapsule: useMobileCapsule,
     );
 
     await engine.initialize();
@@ -455,9 +517,10 @@ Response policy:
       try {
         final retryPrompt = AiCoachPrompts.buildStructuredPrompt(
           task: task,
-          context: compactContext,
+          context: modelContext,
           schema: schema,
           strictRetry: true,
+          mobileCapsule: useMobileCapsule,
         );
         final raw = images.isEmpty
             ? await engine.generateStructuredJson(retryPrompt, schema)
@@ -470,8 +533,16 @@ Response policy:
       } catch (_) {
         final fallback = fallbackEngine;
         if (allowFallback && fallback != null) {
+          // Heuristic/evaluation fallbacks consume the original compact JSON,
+          // not the mobile capsule, so their deterministic parser remains
+          // compatible even when the primary on-device runtime is optimized.
+          final fallbackPrompt = AiCoachPrompts.buildStructuredPrompt(
+            task: task,
+            context: compactContext,
+            schema: schema,
+          );
           final fallbackRaw = await fallback.generateStructuredJson(
-            prompt,
+            fallbackPrompt,
             schema,
           );
           return decodeJsonObject(fallbackRaw);
