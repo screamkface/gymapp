@@ -107,6 +107,30 @@ void main() {
     expect(engine.lastPrompt, isNot(contains('Stale Push')));
     expect(engine.lastPrompt, contains('USER_DATA_AVAILABLE=true'));
   });
+
+  test('malformed mobile Gemma output still falls back to raw deterministic JSON', () async {
+    final service = LocalAiCoachService(
+      engine: _MalformedStructuredGemmaEngine(),
+      fallbackEngine: const HeuristicLocalLlmEngine(),
+      allowFallback: true,
+      contextBuilder: TrainingContextBuilder(now: DateTime(2026, 9, 6)),
+    );
+
+    final report = await service.generateWeeklyReport(
+      history: [
+        _session(
+          id: 'fallback',
+          title: 'Fallback Push',
+          start: DateTime(2026, 9, 5, 18),
+          weight: 80,
+        ),
+      ],
+      schedules: const [],
+    );
+
+    expect(report.sessionsCompleted, 1);
+    expect(report.summary, contains('1 completed sessions'));
+  });
 }
 
 WorkoutSession _session({
@@ -166,4 +190,15 @@ class _CapturingStructuredGemmaEngine extends FlutterGemmaLocalLlmEngine {
 }
 ''';
   }
+}
+
+class _MalformedStructuredGemmaEngine extends FlutterGemmaLocalLlmEngine {
+  @override
+  Future<void> initialize() async {}
+
+  @override
+  Future<String> generateStructuredJson(
+    String prompt,
+    Map<String, dynamic> schema,
+  ) async => 'not json';
 }
