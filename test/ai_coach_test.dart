@@ -38,6 +38,24 @@ void main() {
     expect(prompt, contains('Use only the provided context'));
   });
 
+  test('mobile structured prompt explains capsule semantics', () {
+    final prompt = AiCoachPrompts.buildStructuredPrompt(
+      task: AiCoachTask.weeklyReport,
+      context: const {
+        'context_format': 'mobile_structured_capsule_v1',
+        'user_data_available': true,
+        'capsule': 'USER_DATA_AVAILABLE=true\nSESSION 2026-09-05 Push',
+      },
+      schema: AiCoachPromptSchemas.weeklyReport,
+      mobileCapsule: true,
+    );
+
+    expect(prompt, contains('mobile_structured_capsule_v1'));
+    expect(prompt, contains('FACT/AN'));
+    expect(prompt, contains('Do not claim you cannot access'));
+    expect(prompt, contains('Return ONLY one valid JSON object'));
+  });
+
   test('parses workout recap JSON safely', () {
     final recap = WorkoutRecap.fromJson(
       decodeJsonObject('''
@@ -261,58 +279,17 @@ class _FakeSuggestionService extends LocalAiCoachService {
   const _FakeSuggestionService();
 
   @override
-  Future<SuggestedAdjustmentReport> suggestWorkoutAdjustments({
+  Future<String> generateChatResponse({
     required List<WorkoutSession> history,
     required List<Schedule> schedules,
+    required List<ChatMessage> messages,
     List<ScheduleVersion> scheduleVersions = const [],
     List<BodyLog> bodyLogs = const [],
     AiCoachUserProfile profile = const AiCoachUserProfile(),
     AiCoachMemory memory = const AiCoachMemory(),
-  }) async {
-    return const SuggestedAdjustmentReport(
-      suggestions: [
-        SuggestedAdjustment(
-          type: 'load_progression',
-          target: 'Squat',
-          suggestion: 'Increase by 2.5 kg next session',
-          reason: 'Last session was stable.',
-          evidence: ['Completed all work sets with RIR 2'],
-          confidence: 'medium',
-          requiresUserConfirmation: true,
-        ),
-      ],
-    );
-  }
-}
-
-class _FakeModelInstaller implements AiCoachModelInstaller {
-  const _FakeModelInstaller();
-
-  @override
-  String get modelName => 'Fake Gemma';
-
-  @override
-  String get modelFileName => 'fake.litertlm';
-
-  @override
-  String get modelUrl => 'https://example.com/fake.litertlm';
-
-  @override
-  String get modelSizeLabel => '0 MB';
-
-  @override
-  Future<void> initialize() async {}
-
-  @override
-  Future<bool> isInstalled() async => true;
-
-  @override
-  Future<void> install({void Function(int progress)? onProgress}) async {
-    onProgress?.call(100);
-  }
-
-  @override
-  Future<void> activateInstalledModel() async {}
+    List<AiCoachImageInput> newImages = const [],
+    Map<String, dynamic>? focusContext,
+  }) async => 'Risposta test';
 }
 
 class _FakePlanActionService extends LocalAiCoachService {
@@ -332,25 +309,55 @@ class _FakePlanActionService extends LocalAiCoachService {
         SuggestedAdjustment(
           type: 'load_progression',
           target: 'Panca',
-          suggestion: 'Aumenta di 2.5 kg',
-          reason: 'RIR stabile e readiness adeguata',
-          evidence: ['deterministic progression'],
+          suggestion: 'Aumenta il carico',
+          reason: 'Progressione stabile',
+          evidence: ['2 sedute positive'],
           confidence: 'high',
           requiresUserConfirmation: true,
           proposedActions: [
-            ProposedPlanAction(
+            AiPlanAction(
               action: 'increase_load',
               target: 'Panca',
+              scheduleId: 'push-plan',
+              exerciseId: 'bench-plan',
               field: 'weight',
               currentValue: '80',
               suggestedValue: '82.5',
-              rationale: 'Piccolo incremento',
-              scheduleId: 'push-plan',
-              exerciseId: 'bench-plan',
+              rationale: 'Incremento graduale',
             ),
           ],
         ),
       ],
     );
   }
+}
+
+class _FakeModelInstaller implements AiCoachModelInstaller {
+  const _FakeModelInstaller();
+
+  @override
+  String get modelName => 'Fake Gemma';
+
+  @override
+  String get modelFileName => 'fake.litertlm';
+
+  @override
+  String get modelUrl => 'https://example.com/model';
+
+  @override
+  String get modelSizeLabel => '0 MB';
+
+  @override
+  Future<void> initialize() async {}
+
+  @override
+  Future<bool> isInstalled() async => true;
+
+  @override
+  Future<void> install({void Function(int progress)? onProgress}) async {
+    onProgress?.call(100);
+  }
+
+  @override
+  Future<void> activateInstalledModel() async {}
 }
